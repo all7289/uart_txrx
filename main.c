@@ -1,330 +1,101 @@
-
 #include "main.h"
-
-uint8_t Rx_Buff[20]; 					   // Buffer luu chuoi nhan duoc
-uint8_t Rx_Data;             				// Luu byte nhan duoc
-uint8_t Tx_Buff[20] = "Hello Vietnam";    // Buffer truyen di
-uint8_t _rxIndex;                         // Con tro cua Rx_Buff
-uint16_t Tx_Flag =0;                      // Co bao nhan thanh cong
-uint16_t tmp;                      		// Co bao nhan thanh cong
-
-UART_HandleTypeDef huart2;
+#include "stm32f0xx.h"
+#include <stdint.h>
 
 
-/* Private function prototypes -----------------------------------------------*/
-void SystemClock_Config(void);
-static void MX_GPIO_Init(void);
-static void MX_USART2_UART_Init(void);
+#define GPIOAEN 0x20000
+#define UARTEN 0x20000
 
-void dot(void);
-void dash(void);
-void SoundLetter(char text);
+#define SYS_FREQ 8000000
+#define APB1_CLK SYS_FREQ // vi chua cau hinh cay toc do truyen
 
-/* Private user code ---------------------------------------------------------*/
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-	if(huart->Instance == USART2 )
-	{
-		if(Rx_Data !=6 )
-			{
-				Rx_Buff[_rxIndex++] = Rx_Data;  // Them du lieu vao Buffer
-			}
-			else if(Rx_Data ==6)
-			{
-				_rxIndex = 0;              // Xoa con tro
-				Tx_Flag =1;                // Bat co
-			}
-		HAL_UART_Receive_IT(&huart2, &Rx_Data, 1);
-	}
+#define UART_BAUDRATE 9600
 
-}
+void uart2_rxtx_init(void);
+
+static uart_set_baudrate(USART_TypeDef *USARTx,uint32_t PeriphClk,uint32_t Baudrate);
+
+static uint16_t compete_uart_bd(uint32_t PeriphClk,uint32_t Baudrate);
+
+void uart2_write(int ch);
+char uart2_read(void);
+void delayMs(int delay);
+
+char key;
 
 int main(void)
 {
+	uart2_rxtx_init();
 
-  HAL_Init();
-
-  /* Configure the system clock */
-  SystemClock_Config();
-
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_USART2_UART_Init();
-
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, 1);
   while (1)
   {
-	  HAL_UART_Receive_IT(&huart2, &Rx_Data,1);
-
-	  HAL_Delay(1000);
-
-	  for( int i =0; i< 20; i++)
-	  {
-	  	SoundLetter(Rx_Buff[i]);
-	  	Rx_Buff[i]=0;
-	  }
+	  key= uart2_read();
+	  	  if (key == 'a')
+	  	  {
+	  		  GPIOB->BSRR |=0x8;//led on
+	  		  	  delayMs(1000);
+	  	  }
+	  	  else
+	  	  {
+	  		  GPIOB->BSRR |=0x80000;//led off
+	  		  	  delayMs(1000);
+	  	  }
   }
 }
 
-void dot(void)
+void uart2_rxtx_init(void)
 {
-	HAL_GPIO_WritePin(GPIOB,GPIO_PIN_6, 0);
-	HAL_Delay(100);
-	HAL_GPIO_WritePin(GPIOB,GPIO_PIN_6, 1);
-	HAL_Delay(200);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, 1);
-}
+/***************Configre pin ***************/
+	RCC->AHBENR |= GPIOAEN;//enable clock to access GPIOA
+	GPIOA->MODER |= 0x20;// enable moder alternate function at PA2
+	GPIOA->AFR[0] |= 0x100;// set type AF1 pin PA2//AFR[0]=AFRL******AFR[1]=AFRH
 
-void dash(void)
-{
-	HAL_GPIO_WritePin(GPIOB,GPIO_PIN_6, 0);
-	HAL_Delay(300);
-	HAL_GPIO_WritePin(GPIOB,GPIO_PIN_6, 1);
-	HAL_Delay(200);
-	HAL_GPIO_WritePin(GPIOB,GPIO_PIN_6, 1);
-}
+/***************Configre module uart ***************/
+	RCC->APB1ENR |= UARTEN;//enable clock access to uart2
+	uart_set_baudrate(USART2,APB1_CLK,UART_BAUDRATE);//configure baudrate
+	USART2->CR1 |= 0x8;//configure transfer direcction
+	/***************Configre pin Rx ***************/
 
-void SoundLetter(char text)
-{
-  switch(text)
-  {
-    case 'E':
-      dot();
-      return;
-    case 'T':
-      dash();
-      return;
-    case 'A':
-      dot();
-      dash();
-      return;
-    case 'O':
-      dash();
-      dash();
-      dash();
-      return;
-    case 'I':
-      dot();
-      dot();
-      return;
-    case 'N':
-      dash();
-      dot();
-      return;
-    case 'S':
-      dot();
-      dot();
-      dot();
-      return;
-    case 'H':
-      dot();
-      dot();
-      dot();
-      dot();
-      return;
-    case 'R':
-      dot();
-      dash();
-      dot();
-      return;
-    case 'D':
-      dash();
-      dot();
-      dot();
-      return;
-    case 'L':
-      dot();
-      dash();
-      dot();
-      dot();
-      return;
-    case 'C':
-      dash();
-      dot();
-      dash();
-      dot();
-      return;
-    case 'U':
-      dot();
-      dot();
-      dash();
-      return;
-    case 'M':
-      dash();
-      dash();
-      return;
-    case 'W':
-      dot();
-      dash();
-      dash();
-      return;
-    case 'F':
-      dot();
-      dot();
-      dash();
-      dot();
-      return;
-    case 'G':
-      dash();
-      dash();
-      dot();
-      return;
-    case 'Y':
-      dash();
-      dot();
-      dash();
-      dash();
-      return;
-    case 'P':
-      dot();
-      dash();
-      dash();
-      dot();
-      return;
-    case 'B':
-      dash();
-      dot();
-      dot();
-      dot();
-      return;
-    case 'V':
-      dot();
-      dot();
-      dot();
-      dash();
-      return;
-    case 'K':
-      dash();
-      dot();
-      dash();
-      return;
-    case 'J':
-      dot();
-      dash();
-      dash();
-      dash();
-      return;
-    case 'X':
-      dash();
-      dot();
-      dot();
-      dash();
-      return;
-    case 'Q':
-      dash();
-      dash();
-      dot();
-      dash();
-      return;
-    case 'Z':
-      dash();
-      dash();
-      dot();
-      dot();
-      return;
-    case ' ':
-      HAL_Delay(400);
-      return;
-  }
-}
-void SystemClock_Config(void)
-{
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+		GPIOA->MODER |= 0x80;// enable moder alternate function at PA3
+		GPIOA->AFR[0] |= 0x1000;// set type AF1 pin PA2//AFR[0]=AFRL******AFR[1]=AFRH
 
-  /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
-  */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Initializes the CPU, AHB and APB buses clocks
-  */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+	/***************Configre module uart Rx ***************/
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-}
-
-
-static void MX_USART2_UART_Init(void)
-{
-
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 38400;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    Error_Handler();
-  }
+		USART2->CR1 |= 0x4;//configure transfer direcction
+		USART2->CR1 |=0x1;//enable mode uart
 
 }
 
-
-static void MX_GPIO_Init(void)
+static uart_set_baudrate(USART_TypeDef *USARTx,uint32_t PeriphClk,uint32_t Baudrate)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOF_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin : PB6 */
-  GPIO_InitStruct.Pin = GPIO_PIN_6;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
+	USARTx->BRR = compete_uart_bd(PeriphClk,Baudrate);
 }
 
-void Error_Handler(void)
+static uint16_t compete_uart_bd(uint32_t PeriphClk,uint32_t Baudrate)
 {
-  /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
-  /* USER CODE END Error_Handler_Debug */
+	return ((PeriphClk+(Baudrate/2U))/Baudrate);
 }
 
-#ifdef  USE_FULL_ASSERT
-/**
-  * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
-  * @param  file: pointer to the source file name
-  * @param  line: assert_param error line source number
-  * @retval None
-  */
-void assert_failed(uint8_t *file, uint32_t line)
-{
-  /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
-     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-  /* USER CODE END 6 */
+void delayMs(int n) {
+    int i;
+    for (; n > 0; n--)
+        for (i = 0; i < 3195; i++) ;
 }
-#endif /* USE_FULL_ASSERT */
+
+void uart2_write(int ch)
+{
+	while(!(USART2->ISR & 0x80))
+	{
+		delayMs(100);
+	}
+	USART2->TDR = (ch & 0xFF);
+}
+
+char uart2_read(void)
+{
+	while(!(USART2->ISR & 0x20))
+	{
+	}
+	return USART2->RDR;
+}
 
